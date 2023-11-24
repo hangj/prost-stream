@@ -1,3 +1,10 @@
+// Disallow warnings when running tests.
+#![cfg_attr(test, deny(warnings))]
+// Disallow warnings in examples.
+#![doc(test(attr(deny(warnings))))]
+
+#![cfg_attr(feature="async", doc=include_str!("../README.md"))]
+
 mod stream;
 pub use stream::*;
 
