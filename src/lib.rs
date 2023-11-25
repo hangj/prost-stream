@@ -39,8 +39,12 @@ mod tests {
             let mut stream = Stream::new(stream);
 
             let msg: Ping = stream.recv()?;
-            println!("msg: {:?}", msg);
-            stream.send(&Pong::default())?;
+            assert_eq!(msg, Ping{ id: 1234 });
+            stream.send(&Pong{ id: 9527 })?;
+
+            let msg: Ping = stream.recv()?;
+            assert_eq!(msg, Ping{ id: 4321 });
+            stream.send(&Pong{ id: 7259 })?;
 
             anyhow::Result::<()>::Ok(())
         });
@@ -48,10 +52,13 @@ mod tests {
         let client = TcpStream::connect(addr)?;
         let mut client = Stream::new(client);
 
-        client.send(&Ping::default())?;
+        client.send(&Ping{ id: 1234 })?;
         let pong: Pong = client.recv()?;
+        assert_eq!(pong, Pong{ id: 9527 });
 
-        assert_eq!(pong, Pong::default());
+        client.send(&Ping{ id: 4321 })?;
+        let pong: Pong = client.recv()?;
+        assert_eq!(pong, Pong{ id: 7259 });
 
         Ok(())
     }
@@ -68,8 +75,14 @@ mod tests {
         tokio::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let mut stream = AsyncStream::new(stream);
-            let _msg: Ping = stream.recv().await?;
-            stream.send(&Pong::default()).await?;
+
+            let msg: Ping = stream.recv().await?;
+            assert_eq!(msg, Ping{ id: 1234 });
+            stream.send(&Pong{ id: 9527 }).await?;
+
+            let msg: Ping = stream.recv().await?;
+            assert_eq!(msg, Ping{ id: 4321 });
+            stream.send(&Pong{ id: 7259 }).await?;
 
             anyhow::Result::<()>::Ok(())
         });
@@ -77,10 +90,13 @@ mod tests {
         let client = TcpStream::connect(addr).await?;
         let mut client = AsyncStream::new(client);
 
-        client.send(&Ping::default()).await?;
+        client.send(&Ping{ id: 1234 }).await?;
         let pong: Pong = client.recv().await?;
+        assert_eq!(pong, Pong{ id: 9527 });
 
-        assert_eq!(pong, Pong::default());
+        client.send(&Ping{ id: 4321 }).await?;
+        let pong: Pong = client.recv().await?;
+        assert_eq!(pong, Pong{ id: 7259 });
 
         Ok(())
     }

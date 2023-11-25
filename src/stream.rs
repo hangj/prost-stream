@@ -34,13 +34,17 @@ impl<T: Read + Write> Stream<T> {
         }
     }
 
+    pub fn into_inner(self) -> T {
+        self.stream
+    }
+
     pub fn send(&mut self, msg: &impl Message) -> Result<()> {
         let buf = &mut self.send_buf;
+        buf.clear();
         let sz = msg.encoded_len() + 10;
         buf.reserve(sz);
 
-        // we've reserved enough capacity for the message, so unwrap here is safe
-        msg.encode_length_delimited(buf).unwrap();
+        msg.encode_length_delimited(buf)?;
         self.stream.write_all(buf)?;
         Ok(())
     }
@@ -84,6 +88,7 @@ impl<T: Read + Write> Stream<T> {
 pub struct AsyncStream<T> {
     stream: T,
     buf: Vec<u8>,
+    send_buf: Vec<u8>,
 }
 
 #[cfg(feature = "async")]
@@ -92,12 +97,24 @@ impl<T: AsyncReadExt + AsyncWriteExt + Unpin> AsyncStream<T> {
         Self {
             stream,
             buf: vec![0u8; 1024],
+            send_buf: Vec::with_capacity(1024),
         }
     }
 
-    pub async fn send(&mut self, msg: &impl Message) -> Result<()> {
+    pub fn into_inner(self) -> T {
         self.stream
-            .write_all(&msg.encode_length_delimited_to_vec())
+    }
+
+    pub async fn send(&mut self, msg: &impl Message) -> Result<()> {
+        let buf = &mut self.send_buf;
+        buf.clear();
+        let sz = msg.encoded_len() + 10;
+        buf.reserve(sz);
+
+        msg.encode_length_delimited(buf)?;
+
+        self.stream
+            .write_all(buf) // &msg.encode_length_delimited_to_vec()
             .await
             .map_err(Into::into)
     }
